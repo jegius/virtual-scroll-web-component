@@ -1,0 +1,7 @@
+<main class="main">
+  <virtual-scroll #virtualScroll height="300px">
+    <div *ngFor="let item of items; let i = index" style="height: 50px; border-bottom: 1px solid #ccc;">
+      Item {{i}}: {{item}}
+    </div>
+  </virtual-scroll>
+</main>
