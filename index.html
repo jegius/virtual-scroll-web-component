@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Scroll</title>
+    <style>
+        virtual-scroll {
+            display: block;
+            height: 300px; /* Set the height for the scrolling area */
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+<virtual-scroll>
+    <div>Item 1</div>
+    <div>Item 2</div>
+    <div>Item 3</div>
+    <div>Item 4</div>
+    <div>Item 5</div>
+    <div>Item 6</div>
+    <div>Item 7</div>
+    <div>Item 8</div>
+    <div>text1</div>
+    <div>text2</div>
+    <div>text3</div>
+    <div>text4</div>
+    <div>text5</div>
+    <div>text6</div>
+    <div>text7</div>
+    <div>text8</div>
+    <div>text9</div>
+    <div>text10</div>
+    <div>text11</div>
+    <div>text12</div>
+    <div>text13</div>
+    <div>text14</div>
+    <div>text15</div>
+    <div>text16</div>
+    <div>text17</div>
+    <div>text18</div>
+    <div>text19</div>
+    <div>text20</div>
+    <div>text21</div>
+    <div>text22</div>
+    <div>text23</div>
+    <div>text24</div>
+    <div>text25</div>
+    <div>text26</div>
+    <div>text27</div>
+    <div>text28</div>
+    <div>text29</div>
+    <div>text30</div>
+    <div>text31</div>
+    <div>text32</div>
+    <div>text33</div>
+    <div>text34</div>
+    <div>text35</div>
+    <div>text36</div>
+    <div>text37</div>
+    <div>text38</div>
+    <div>text39</div>
+    <div>text40</div>
+    <div>text41</div>
+    <div>text42</div>
+    <div>text43</div>
+    <div>text44</div>
+    <div>text45</div>
+    <div>text46</div>
+    <div>text47</div>
+    <div>text48</div>
+    <div>text49</div>
+    <div>text50</div>
+    <div>text51</div>
+    <div>text52</div>
+    <div>text53</div>
+    <div>text54</div>
+    <div>text55</div>
+    <div>text56</div>
+    <div>text57</div>
+    <div>text58</div>
+    <div>text59</div>
+    <div>text60</div>
+    <div>text61</div>
+    <div>text62</div>
+    <div>text63</div>
+    <div>text64</div>
+    <div>text65</div>
+    <div>text66</div>
+    <div>text67</div>
+    <div>text68</div>
+    <div>text69</div>
+    <div>text70</div>
+    <div>text71</div>
+    <div>text72</div>
+    <div>text73</div>
+    <div>text74</div>
+    <div>text75</div>
+    <div>text76</div>
+    <div>text77</div>
+    <div>text78</div>
+    <div>text79</div>
+    <div>text80</div>
+    <div>text81</div>
+    <div>text82</div>
+    <div>text83</div>
+    <div>text84</div>
+    <div>text85</div>
+    <div>text86</div>
+    <div>text87</div>
+    <div>text88</div>
+    <div>text89</div>
+    <div>text90</div>
+    <div>text91</div>
+    <div>text92</div>
+    <div>text93</div>
+    <div>text94</div>
+    <div>text95</div>
+    <div>text96</div>
+    <div>text97</div>
+    <div>text98</div>
+    <div>text99</div>
+    <div>text100</div>
+</virtual-scroll>
+
+<script>
+    class VirtualScroll extends HTMLElement {
+        constructor() {
+            super();
+            this.itemsMap = new Map();
+            this.visibleItems = new Set();
+            this.itemHeight = 50; // Assuming each item is 50px height
+            this.bufferSize = 5; // Number of items to buffer above and below the viewport
+            this.attachShadow({ mode: 'open' });
+            this.shadowRoot.innerHTML = `
+            <style>
+                :host {
+                    display: block;
+                    overflow-y: auto;
+                    position: relative;
+                    height: 100%;
+                }
+                .placeholder {
+                    height: 1px;
+                    visibility: hidden;
+                }
+            </style>
+            <div class="content"></div>
+            <div class="bottom-placeholder placeholder"></div>
+        `;
+        }
+
+        connectedCallback() {
+            this.style.height = this.getAttribute('height') || '500px';
+            const content = this.shadowRoot.querySelector('.content');
+            content.style.position = 'relative';
+
+            this.indexItems();
+            this.attachScrollListener();
+
+            // Initial render
+            this.updateVisibleItems();
+        }
+
+        indexItems() {
+            const children = Array.from(this.children);
+            children.forEach((child, index) => {
+                this.itemsMap.set(index, child.cloneNode(true));
+            });
+
+            this.innerHTML = ''; // Clear the initial content
+            const placeholderHeight = this.itemsMap.size * this.itemHeight;
+            this.shadowRoot.querySelector('.bottom-placeholder').style.top = `${placeholderHeight}px`;
+        }
+
+        attachScrollListener() {
+            this.addEventListener('scroll', () => {
+                this.updateVisibleItems();
+            });
+        }
+
+        updateVisibleItems() {
+            const scrollTop = this.scrollTop;
+            const visibleItemCount = Math.ceil(this.clientHeight / this.itemHeight);
+            const startIndex = Math.max(0, Math.floor(scrollTop / this.itemHeight) - this.bufferSize);
+            const endIndex = Math.min(this.itemsMap.size, startIndex + visibleItemCount + 2 * this.bufferSize);
+
+            // Remove items that are no longer visible
+            for (let i of Array.from(this.visibleItems)) {
+                if (i < startIndex || i >= endIndex) {
+                    this.visibleItems.delete(i);
+                    const item = this.shadowRoot.querySelector(`[data-index="${i}"]`);
+                    if (item) {
+                        this.shadowRoot.querySelector('.content').removeChild(item);
+                    }
+                }
+            }
+
+            // Add items that should now be visible
+            for (let i = startIndex; i < endIndex; i++) {
+                if (!this.visibleItems.has(i)) {
+                    this.visibleItems.add(i);
+                    const item = this.itemsMap.get(i).cloneNode(true);
+                    item.style.position = 'absolute';
+                    item.style.top = `${i * this.itemHeight}px`;
+                    item.style.width = '100%';
+                    item.setAttribute('data-index', i);
+                    this.shadowRoot.querySelector('.content').appendChild(item);
+                }
+            }
+        }
+    }
+
+    customElements.define('virtual-scroll', VirtualScroll);
+</script>
+</body>
+</html>
