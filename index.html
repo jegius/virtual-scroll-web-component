@@ -1238,8 +1238,8 @@
             super();
             this.itemsMap = [];
             this.visibleItems = new Set();
-            this.itemHeights = [];
-            this.bufferSize = 10; // Количество элементов для буфера (выше и ниже области просмотра)
+            this.itemHeights = []; // Высоты элементов
+            this.bufferSize = 10;
             this.attachShadow({ mode: 'open' });
             this.shadowRoot.innerHTML = `
             <style>
@@ -1271,10 +1271,12 @@
 
         indexItems() {
             const children = Array.from(this.children);
-            this.itemsMap = children.map(child => child.cloneNode(true)); // Сохраняем оригинал
-            this.itemHeights = new Array(children.length).fill(0); // Инициализация высот
+            this.itemsMap = children.map(child => child.cloneNode(true));
 
-            // Placeholder для общего высоты
+            // Заполняем высоты
+            this.itemHeights = this.itemsMap.map(item => this.getItemHeight(item));
+
+            children.forEach(child => child.remove());
             this.updatePlaceholderHeight();
         }
 
@@ -1285,7 +1287,7 @@
 
         attachScrollListener() {
             this.addEventListener('scroll', () => {
-                this.updateVisibleItems();
+                requestAnimationFrame(() => this.updateVisibleItems());
             });
         }
 
@@ -1293,35 +1295,32 @@
             const scrollTop = this.scrollTop;
             const clientHeight = this.clientHeight;
             const startIndex = this.getStartIndex(scrollTop);
-            const endIndex = this.getEndIndex(scrollTop + clientHeight);
+            const endIndex = this.getEndIndex(scrollTop);
 
-            // Удаляем элементы, которые больше не видны
             this.removeInvisibleItems(startIndex, endIndex);
-
-            // Добавляем элементы, которые теперь должны быть видны
             this.renderVisibleItems(startIndex, endIndex);
         }
 
         getStartIndex(scrollTop) {
             let totalHeight = 0;
             for (let i = 0; i < this.itemHeights.length; i++) {
-                totalHeight += this.getItemHeight(i);
+                totalHeight += this.itemHeights[i]; // Используем кэшированные высоты
                 if (totalHeight > scrollTop) {
                     return i;
                 }
             }
-            return this.itemHeights.length - 1; // Возвращаем последний индекс, если ничего не найдено
+            return this.itemHeights.length - 1;
         }
 
         getEndIndex(scrollTop) {
             let totalHeight = 0;
             for (let i = 0; i < this.itemHeights.length; i++) {
-                totalHeight += this.getItemHeight(i);
-                if (totalHeight > scrollTop) {
-                    return i + Math.ceil(this.clientHeight / Math.min(...this.itemHeights.filter(h => h > 0))) + this.bufferSize;
+                totalHeight += this.itemHeights[i]; // Используем кэшированные высоты
+                if (totalHeight >= scrollTop + this.clientHeight) {
+                    return Math.min(i + this.bufferSize, this.itemHeights.length - 1);
                 }
             }
-            return this.itemHeights.length - 1; // Возвращаем последний индекс
+            return this.itemHeights.length - 1;
         }
 
         removeInvisibleItems(startIndex, endIndex) {
@@ -1338,43 +1337,39 @@
 
         renderVisibleItems(startIndex, endIndex) {
             const content = this.shadowRoot.querySelector('.content');
-            const fragment = document.createDocumentFragment(); // Используем DocumentFragment для оптимизации
+            const fragment = document.createDocumentFragment();
 
-            for (let i = startIndex; i < endIndex; i++) {
+            for (let i = startIndex; i <= endIndex; i++) {
                 if (!this.visibleItems.has(i)) {
                     this.visibleItems.add(i);
-
-                    // Создаем визуализируемый элемент
                     const item = this.itemsMap[i].cloneNode(true);
                     item.style.position = 'absolute';
-                    item.style.top = `${this.getAccumulatedHeight(i)}px`; // Учитываем высоты всех предыдущих элементов
+                    item.style.top = `${this.getAccumulatedHeight(i)}px`;
                     item.style.width = '100%';
                     item.setAttribute('data-index', i);
-                    fragment.appendChild(item); // Добавляем элемент во фрагмент
+                    fragment.appendChild(item);
                 }
             }
-            content.appendChild(fragment); // Добавляем все элементы за один раз
+
+            content.appendChild(fragment);
         }
 
         getAccumulatedHeight(index) {
-            // Возвращает общую высоту всех предыдущих элементов
             return this.itemHeights.slice(0, index).reduce((sum, height) => sum + height, 0);
         }
 
-        // Метод для получения высоты элемента, если она еще не вычислена
-        getItemHeight(index) {
-            if (this.itemHeights[index] === 0) {
-                const tempElement = this.itemsMap[index].cloneNode(true);
-                tempElement.style.position = 'absolute';
-                tempElement.style.visibility = 'hidden';
-                document.body.appendChild(tempElement);
-                const height = tempElement.offsetHeight;
-                this.itemHeights[index] = height; // Сохраняем высоту для дальнейшего использования
-                document.body.removeChild(tempElement);
-            }
-            return this.itemHeights[index];
+        getItemHeight(item) {
+            // Создаем временный элемент для измерения высоты
+            const tempElement = item.cloneNode(true);
+            tempElement.style.position = 'absolute';
+            tempElement.style.visibility = 'hidden';
+            document.body.appendChild(tempElement);
+            const height = tempElement.offsetHeight;
+            document.body.removeChild(tempElement);
+            return height;
         }
     }
+
 
     customElements.define('virtual-scroll', VirtualScroll);
 </script>
